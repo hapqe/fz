@@ -68,6 +68,9 @@ function join(socket: Socket, info: any) {
         }
         room.players[id] = true;
         socket.join(info.code);
+        console.log(socket.rooms);
+        console.log(rooms)
+        socket.emit('join', id);
 
         return new Player(info.code, id);
     }
@@ -93,6 +96,8 @@ io.on('connection', (socket) => {
 
     socket.on('create', (info, callback) => {
         try {
+            console.log(`Created room ${info.code}`);
+
             validate(info);
 
             if (rooms.has(info.code))
@@ -102,6 +107,8 @@ io.on('connection', (socket) => {
 
             const p = join(socket, info);
             players.set(socket.id, p);
+
+            callback();
         }
         catch (e) {
             handle(e, callback);
