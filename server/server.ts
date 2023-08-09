@@ -32,6 +32,7 @@ class Room {
 
 const players = new Map<string, Player>();
 const rooms = new Map<string, Room>();
+const spectators = new Map<string, string[]>();
 
 class ClientError extends Error {
     constructor(message: string) {
@@ -42,15 +43,17 @@ class ClientError extends Error {
 
 function handle(e: any, callback: any) {
     if (e instanceof ClientError)
-        callback({ error: e.message });
-    else {
-        console.log(e.message);
-        callback({ error: 'Unknown error' });
-    }
+        if (callback instanceof Function)
+            callback({ error: e.message });
+        else {
+            console.log(e.message);
+            if (callback instanceof Function)
+                callback({ error: 'Unknown error' });
+        }
 }
 
-function validate(info: any) {
-    if (!info.code || typeof info.playing !== 'boolean') {
+function validate(info: any, callback: any) {
+    if (!(callback instanceof Function) || !info.code || !(info.code.length === 4) || typeof info.playing !== 'boolean') {
         throw new ClientError('Invalid data');
     }
 }
@@ -67,22 +70,51 @@ function join(socket: Socket, info: any) {
             throw new ClientError('Room is full');
         }
         room.players[id] = true;
+
         socket.join(info.code);
-        console.log(socket.rooms);
-        console.log(rooms)
-        socket.emit('join', id);
+
+        io.to(info.code).to(info.code + '_s').emit('join', { id });
 
         return new Player(info.code, id);
     }
 
-    socket.join(info.code);
+    socket.join(info.code + "_s");
+
+    const s = spectators.get(info.code) || [];
+    spectators.set(info.code, [...s, socket.id]);
+    io.to(info.code).to(info.code + '_s').emit('spectators', { count: s.length + 1 })
+
     return new Player(info.code);
+}
+
+function leave(socket: Socket) {
+    const player = players.get(socket.id);
+    if (!player) return;
+
+    if (player.code) {
+        if (player.id) {
+            const room = rooms.get(player.code)!;
+            room.leave(player.id);
+
+            if (room.empty()) {
+                rooms.delete(player.code);
+            }
+
+            io.to(player.code).to(player.code + '_s').emit('leave', { id: player.id });
+        }
+        else {
+            const s = spectators.get(player.code)!;
+            spectators.get(player.code)!.splice(s.indexOf(socket.id), 1);
+            io.to(player.code).to(player.code + '_s').emit('spectators', { count: s.length - 1 })
+        }
+    }
+    players.delete(socket.id);
 }
 
 io.on('connection', (socket) => {
     socket.on('join', (info, callback) => {
         try {
-            validate(info);
+            validate(info, callback);
 
             if (players.has(socket.id))
                 throw new ClientError('Already joined');
@@ -96,9 +128,7 @@ io.on('connection', (socket) => {
 
     socket.on('create', (info, callback) => {
         try {
-            console.log(`Created room ${info.code}`);
-
-            validate(info);
+            validate(info, callback);
 
             if (rooms.has(info.code))
                 throw new ClientError('Room already exists');
@@ -116,18 +146,7 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        const player = players.get(socket.id);
-        if (!player) return;
-
-        if (player.code) {
-            const room = rooms.get(player.code)!;
-            room.leave(player.id!);
-
-            if (room.empty()) {
-                rooms.delete(player.code);
-            }
-        }
-        players.delete(socket.id);
+        leave(socket);
     });
 });
 

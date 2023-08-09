@@ -1,8 +1,12 @@
 <script lang="ts">
     import { bounceIn, bounceOut } from "svelte/easing";
     import { scale } from "svelte/transition";
-    import socket from "../socket";
     import { playing } from "./Toggle.svelte";
+    import { key, type Context } from "./Players.svelte";
+    import { getContext } from "svelte";
+    import { io } from "socket.io-client";
+
+    const { onConnect } = getContext<Context>(key);
 
     let code = "";
 
@@ -22,28 +26,26 @@
     }
 
     function create() {
-        return new Promise<string>((resolve, reject) => {
+        return new Promise<{ qr: string; url: string }>((resolve, reject) => {
             code = generateCode();
-            socket.emit("create", { code, playing: $playing }, async (r) => {
-                if (r?.error) {
-                    create();
-                } else {
-                    const url = new URL(window.location.href) + "?j=" + code;
-                    console.log(url);
+            onConnect
+                .invoke(io())
+                .emit("create", { code, playing: $playing }, async (r) => {
+                    if (r?.error) {
+                        create();
+                    } else {
+                        const url =
+                            new URL(window.location.href) + "?j=" + code;
 
-                    const link = await fetch(
-                        `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${url}`
-                    );
-                    const qr = await link.blob();
-                    resolve({ qr: URL.createObjectURL(qr), url });
-                }
-            });
+                        const link = await fetch(
+                            `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${url}`
+                        );
+                        const qr = await link.blob();
+                        resolve({ qr: URL.createObjectURL(qr), url });
+                    }
+                });
         });
     }
-
-    socket.on("connect", () => {
-        create();
-    });
 </script>
 
 <main>

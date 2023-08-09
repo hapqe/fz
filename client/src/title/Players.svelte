@@ -1,15 +1,35 @@
+<script context="module" lang="ts">
+    export type Context = {
+        onConnect: Action<Socket>;
+    };
+
+    export const key = Symbol();
+</script>
+
 <script lang="ts">
-    import { io } from "socket.io-client";
+    import { Socket, io } from "socket.io-client";
     import Player from "./Player.svelte";
     import Spectators from "./Spectators.svelte";
-    import socket from "../socket";
+    import { setContext } from "svelte";
+    import { Action } from "../helpers";
+    import { playing } from "./Toggle.svelte";
 
     let players = [false, false, false, false];
 
-    socket.on("join", (index: number) => {
-        console.log(index);
+    const context = {
+        onConnect: new Action<Socket>(),
+    };
 
-        players[index] = true;
+    setContext(key, context);
+
+    context.onConnect.subscribe((socket) => {
+        socket.on("join", (info) => {
+            players[info.id] = true;
+        });
+
+        playing.subscribe((value) => {
+            socket.emit("role", { playing: value });
+        });
     });
 </script>
 

@@ -5,3 +5,4 @@
 </script>
 
 <input bind:value={code} maxlength="4" type="text" name="" id="" />
+<button>join</button>
