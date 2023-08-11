@@ -3,6 +3,7 @@ import http from 'http';
 import { Server, Socket } from 'socket.io';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Game } from '../game/game';
+import Joi, { func } from 'joi';
 
 const app = express();
 const server = http.createServer(app);
@@ -10,145 +11,206 @@ const io = new Server(server);
 
 app.use(createProxyMiddleware('/', { target: 'http://localhost:4001', ws: true }));
 
-class Player {
-    constructor(public code?: string, public id?: number) { }
-}
-
-class Room {
-    players: boolean[] = [false, false, false, false];
-
-    empty() {
-        return this.players.every((value) => !value);
-    }
-
-    next() {
-        return this.players.indexOf(false);
-    }
-
-    leave(id: number) {
-        this.players[id] = false;
-    }
-}
-
-const players = new Map<string, Player>();
-const rooms = new Map<string, Room>();
-const spectators = new Map<string, string[]>();
-
 class ClientError extends Error {
     constructor(message: string) {
         super(message);
-        this.name = "ClientError";
     }
 }
 
-function handle(e: any, callback: any) {
-    if (e instanceof ClientError)
-        if (callback instanceof Function)
-            callback({ error: e.message });
-        else {
-            console.log(e.message);
-            if (callback instanceof Function)
-                callback({ error: 'Unknown error' });
-        }
-}
-
-function validate(info: any, callback: any) {
-    if (!(callback instanceof Function) || !info.code || !(info.code.length === 4) || typeof info.playing !== 'boolean') {
-        throw new ClientError('Invalid data');
+function handle(e: any, socket: Socket) {
+    if (e instanceof ClientError) {
+        socket.emit('error', { error: e.message });
     }
-}
-
-function join(socket: Socket, info: any) {
-    if (info.playing) {
-        const room = rooms.get(info.code);
-
-        if (!room)
-            throw new ClientError('Room does not exist');
-
-        const id = room.next();
-        if (id === -1) {
-            throw new ClientError('Room is full');
-        }
-        room.players[id] = true;
-
-        socket.join(info.code);
-
-        io.to(info.code).to(info.code + '_s').emit('join', { id });
-
-        return new Player(info.code, id);
+    else {
+        socket.emit('error', { error: 'An error occurred' });
+        console.warn(e);
     }
 
-    socket.join(info.code + "_s");
-
-    const s = spectators.get(info.code) || [];
-    spectators.set(info.code, [...s, socket.id]);
-    io.to(info.code).to(info.code + '_s').emit('spectators', { count: s.length + 1 })
-
-    return new Player(info.code);
 }
 
-function leave(socket: Socket) {
-    const player = players.get(socket.id);
-    if (!player) return;
+function validate(info: any, schema: Joi.ObjectSchema<any>) {
+    const { error, value } = schema.validate(info);
 
-    if (player.code) {
-        if (player.id) {
-            const room = rooms.get(player.code)!;
-            room.leave(player.id);
+    if (error) {
+        console.log(error);
+        throw new ClientError("Invalid data");
+    }
 
-            if (room.empty()) {
-                rooms.delete(player.code);
-            }
+    return value;
+}
 
-            io.to(player.code).to(player.code + '_s').emit('leave', { id: player.id });
+function requireCallback(callback: any) {
+    if (!(callback instanceof Function))
+        throw new ClientError("An error occurred");
+}
+
+class Room {
+    players: (Player | null)[] = [null, null, null, null];
+    spectators = new Set<Player>();
+    constructor(public code: string) { }
+
+    play(player: Player, info: any) {
+        const index = this.players.indexOf(null);
+        if (index == -1)
+            throw new ClientError("Room is full");
+
+        this.players[index] = player;
+        player.room = this;
+
+        this.inform();
+    }
+
+    spectate(player: Player) {
+        this.spectators.add(player);
+        player.room = this;
+
+        this.inform();
+    }
+
+    leave(player: Player, deleteIfEmpty = true) {
+        const index = this.players.indexOf(player);
+
+        if (index != -1) {
+            this.players[index] = null;
         }
         else {
-            const s = spectators.get(player.code)!;
-            spectators.get(player.code)!.splice(s.indexOf(socket.id), 1);
-            io.to(player.code).to(player.code + '_s').emit('spectators', { count: s.length - 1 })
+            this.spectators.delete(player);
         }
+
+        if (deleteIfEmpty && this.players.every(p => p == null) && this.spectators.size == 0)
+            rooms.delete(this.code);
+
+        this.inform();
     }
-    players.delete(socket.id);
+
+    full() {
+        return this.players.every(p => p != null);
+    }
+
+    inform() {
+        [...this.players, ...this.spectators].forEach((p) => {
+            p?.socket.emit('roomInfo', {
+                players: this.players.map(p => p != null),
+                spectators: this.spectators.size,
+            });
+        });
+    }
 }
+
+class Player {
+    room: Room | null = null;
+    constructor(public socket: Socket) { }
+}
+
+const rooms = new Map<string, Room>();
 
 io.on('connection', (socket) => {
-    socket.on('join', (info, callback) => {
-        try {
-            validate(info, callback);
-
-            if (players.has(socket.id))
-                throw new ClientError('Already joined');
-
-            players.set(socket.id, join(socket, info));
-        }
-        catch (e) {
-            handle(e, callback);
-        }
-    });
+    const player = new Player(socket);
 
     socket.on('create', (info, callback) => {
         try {
-            validate(info, callback);
+            requireCallback(callback);
 
-            if (rooms.has(info.code))
-                throw new ClientError('Room already exists');
+            const schema = Joi.object({
+                code: Joi.string().length(4).required(),
+                playing: Joi.boolean().required()
+            })
 
-            rooms.set(info.code, new Room());
+            validate(info, schema);
 
-            const p = join(socket, info);
-            players.set(socket.id, p);
+            if (rooms.has(info.code)) {
+                callback(false);
+                throw new ClientError("Room already exists");
+            }
 
-            callback();
+            const room = new Room(info.code);
+            rooms.set(info.code, room);
+
+            if (info.playing)
+                room.play(player, info);
+            else
+                room.spectate(player);
+
+            callback(true);
         }
         catch (e) {
-            handle(e, callback);
+            handle(e, socket)
         }
+    });
+
+    socket.on('join', (info, callback) => {
+        try {
+            if (player.room)
+                throw new ClientError("Already in a room");
+
+            requireCallback(callback);
+
+            const schema = Joi.object({
+                code: Joi.string().length(4).required(),
+                playing: Joi.boolean().required()
+            })
+
+            validate(info, schema);
+
+            const room = rooms.get(info.code);
+
+            if (!room) {
+                callback(false);
+                throw new ClientError("Room does not exist");
+            }
+
+            if (info.playing) {
+                if (room.full()) {
+                    callback({ full: true });
+                }
+                room.play(player, info);
+            }
+            else room.spectate(player);
+
+            callback({ success: true });
+        }
+        catch (e) {
+            handle(e, socket);
+        }
+    });
+
+    socket.on('role', (info) => {
+        console.log("role", info);
+
+
+        try {
+            const schema = Joi.object({
+                playing: Joi.boolean().required()
+            })
+
+            validate(info, schema);
+
+            const room = player.room;
+            if (!room)
+                throw new ClientError("Not in a room");
+
+            room.leave(player, false);
+
+            if (info.playing)
+                room.play(player, info);
+            else
+                room.spectate(player);
+        }
+        catch (e) {
+            handle(e, socket);
+        }
+    });
+
+
+    socket.on('leave', () => {
+        player.room?.leave(player);
     });
 
     socket.on('disconnect', () => {
-        leave(socket);
+        player.room?.leave(player);
     });
 });
+
 
 server.listen(4000, () => {
     console.log('listening on *:4000');

@@ -1,20 +1,21 @@
 <script lang="ts">
     import { bounceOut } from "svelte/easing";
     import { scale } from "svelte/transition";
-
-    import { key, type Context } from "./Players.svelte";
+    import socket from "../socket";
+    import { roomEvent } from "../helpers";
     import { getContext } from "svelte";
-
-    const { onConnect } = getContext<Context>(key);
+    import { key, type Context } from "./Players.svelte";
 
     let spectators = 0;
 
-    onConnect.subscribe((socket) => {
-        socket.on("spectators", (info) => {
-            console.log(info);
+    roomEvent("roomInfo", (info) => {
+        spectators = info.spectators;
+    });
 
-            spectators = info.count;
-        });
+    const { leave } = getContext<Context>(key);
+
+    leave.add(() => {
+        spectators = 0;
     });
 </script>
 

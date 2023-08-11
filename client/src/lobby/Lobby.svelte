@@ -22,9 +22,9 @@
     <Name />
     <Toggle />
     <players bind:this={players}>
-        <Players />
-        <Players><Qr /></Players>
-        <Players><Join /></Players>
+        <Players type="online">No online yet...</Players>
+        <Players type="create"><Qr /></Players>
+        <Players type="join"><Join /></Players>
     </players>
     <buttons>
         <Button><h3>Online</h3></Button>
@@ -68,7 +68,6 @@
         display: flex;
 
         scroll-snap-type: x mandatory;
-        scroll-left: 100%;
     }
 
     players::-webkit-scrollbar {
