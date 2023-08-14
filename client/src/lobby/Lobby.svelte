@@ -14,8 +14,6 @@
         modes.scrollLeft =
             (($lobbyMode == "join" ? 2 : 1) * modes.scrollWidth) / 3;
     });
-
-    let create: Create;
 </script>
 
 <main>
@@ -23,8 +21,8 @@
     <Toggle />
     <modes bind:this={modes}>
         <RoomInfo>No online yet...</RoomInfo>
-        <Create bind:this={create} />
-        <Join on:leave={create.create} />
+        <Create />
+        <Join />
     </modes>
     <buttons>
         <Button><h3>Online</h3></Button>

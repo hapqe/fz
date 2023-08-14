@@ -4,19 +4,8 @@
     import socket from "../socket";
     import Leave from "./Leave.svelte";
 
-    let code = "";
-
-    function create() {
-        return new Promise<{ qr: string; url: string }>((resolve, reject) => {
-            code = generateCode();
-            socket.emit(
-                "create",
-                { code, playing: $playing },
-                async (created) => {
-                    if (!created) {
-                        create();
-                    } else {
-                        const url =
+    /* 
+    const url =
                             new URL(window.location.href) + "?j=" + code;
 
                         const link = await fetch(
@@ -24,13 +13,10 @@
                         );
                         const qr = await link.blob();
                         resolve({ qr: URL.createObjectURL(qr), url });
-                    }
-                }
-            );
-        });
-    }
+    */
 </script>
 
+<!-- 
 <main>
     {#if false}
         {#await create() then { qr, url }}
@@ -48,4 +34,4 @@
         You need to leave your current room to create a new one.
         <Leave />
     {/if}
-</main>
+</main> -->

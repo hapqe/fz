@@ -9,7 +9,14 @@
         spectators.update(data);
     }
 
+    function reset() {
+        players = [false, false, false, false];
+        spectators.update({ spectators: 0 });
+    }
+
     let spectators: Spectators;
+
+    window.addEventListener("leave", reset);
 </script>
 
 <main>

@@ -1,6 +1,7 @@
 <script lang="ts">
     import socket from "../socket";
     import { code, joined, lobbyMode, playing } from "../stores";
+    import Leave from "./Leave.svelte";
     import RoomInfo from "./RoomInfo.svelte";
 
     function generateCode() {
@@ -38,13 +39,14 @@
     let info: RoomInfo;
 
     let url = "";
+
+    window.addEventListener("leave", create);
 </script>
 
 <RoomInfo bind:this={info}>
     {#if $lobbyMode == "create"}
         <a target="_blank" href={url}>{url}</a>
     {:else}
-        You need to leave your current room to create a new one.
-        <button on:click={create}>Leave</button>
+        You need to leave your current room to create a new one. <Leave />
     {/if}
 </RoomInfo>

@@ -3,26 +3,31 @@
     import socket from "../socket";
     import { code, joined, lobbyMode, playing } from "../stores";
     import RoomInfo from "./RoomInfo.svelte";
+    import Leave from "./Leave.svelte";
 
     function join() {
-        socket.on("roomInfo", (i) => info.update(i));
+        socket.on("roomInfo", update);
 
         socket.emit("join", { code: $code, playing: $playing }, (joined) => {
             $joined = joined;
         });
     }
 
+    function update(i: any) {
+        info.update(i);
+    }
+
     if ($lobbyMode == "join") join();
 
     let info: RoomInfo;
 
-    const dispatch = createEventDispatcher();
+    window.addEventListener("leave", () => socket.off("roomInfo", update));
 </script>
 
 <RoomInfo bind:this={info}>
     {#if $lobbyMode == "join"}
         <h1>#{$code}</h1>
-        <button on:click={() => dispatch("leave")}>Leave</button>
+        <Leave />
     {:else}
         <input bind:value={$code} maxlength="4" type="text" name="" id="" />
         <!-- <button>{$playing ? "Fight!" : "Spectate"}</button> -->
