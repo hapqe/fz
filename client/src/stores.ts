@@ -1,10 +1,9 @@
 import { writable } from "svelte/store";
 import { getCode } from "./helpers";
 
-export type RoomType = "online" | "create" | "join";
-export type Phase = "lobby" | "deck" | "game" | "end";
+export type LobbyMode = "online" | "create" | "join";
 
-export const roomType = writable<RoomType>(getCode() ? "join" : "create");
-export const phase = writable<Phase>("lobby");
-
+export const playing = writable(localStorage.getItem("playing") === "true");
+export const lobbyMode = writable<LobbyMode>(getCode() ? "join" : "create");
 export const joined = writable(false);
+export const code = writable(getCode());

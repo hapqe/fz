@@ -25,7 +25,6 @@ function handle(e: any, socket: Socket) {
         socket.emit('error', { error: 'An error occurred' });
         console.warn(e);
     }
-
 }
 
 function validate(info: any, schema: Joi.ObjectSchema<any>) {
@@ -175,9 +174,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('role', (info) => {
-        console.log("role", info);
-
-
         try {
             const schema = Joi.object({
                 playing: Joi.boolean().required()

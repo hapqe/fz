@@ -1,11 +1,14 @@
-<script context="module" lang="ts">
+<script lang="ts">
     import { writable } from "svelte/store";
-    import type { Socket } from "socket.io-client";
-
-    export const playing = writable(localStorage.getItem("playing") === "true");
+    import { joined, playing } from "../stores";
+    import socket from "../socket";
 
     playing.subscribe((value) => {
         localStorage.setItem("playing", String(value));
+
+        if ($joined) {
+            socket.emit("role", { playing: $playing });
+        }
     });
 </script>
 

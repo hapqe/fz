@@ -1,30 +1,30 @@
 <script lang="ts">
-    import { getContext } from "svelte";
-    import { getCode, roomMode } from "../helpers";
+    import { createEventDispatcher } from "svelte";
     import socket from "../socket";
-    import { joined, roomType } from "../stores";
-    import { key, type Context } from "./Players.svelte";
-    import { playing } from "./Toggle.svelte";
-    import Leave from "./Leave.svelte";
+    import { code, joined, lobbyMode, playing } from "../stores";
+    import RoomInfo from "./RoomInfo.svelte";
 
-    let code = getCode();
+    function join() {
+        socket.on("roomInfo", (i) => info.update(i));
 
-    roomMode(() => {
-        socket.emit("join", { code, playing: $playing }, (joined) => {
-            if (joined) {
-                $roomType = "join";
-                $joined = true;
-            }
+        socket.emit("join", { code: $code, playing: $playing }, (joined) => {
+            $joined = joined;
         });
-    });
+    }
 
-    const { type } = getContext<Context>(key);
+    if ($lobbyMode == "join") join();
+
+    let info: RoomInfo;
+
+    const dispatch = createEventDispatcher();
 </script>
 
-{#if type == $roomType}
-    <h1>#{getCode()}</h1>
-    <Leave />
-{:else}
-    <input bind:value={code} maxlength="4" type="text" name="" id="" />
-    <button>{$playing ? "Fight!" : "Spectate"}</button>
-{/if}
+<RoomInfo bind:this={info}>
+    {#if $lobbyMode == "join"}
+        <h1>#{$code}</h1>
+        <button on:click={() => dispatch("leave")}>Leave</button>
+    {:else}
+        <input bind:value={$code} maxlength="4" type="text" name="" id="" />
+        <!-- <button>{$playing ? "Fight!" : "Spectate"}</button> -->
+    {/if}
+</RoomInfo>

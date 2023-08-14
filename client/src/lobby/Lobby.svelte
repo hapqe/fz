@@ -1,31 +1,31 @@
 <script lang="ts">
     import Button from "./Button.svelte";
     import Name from "./Name.svelte";
-    import Players from "./Players.svelte";
-    import Spectators from "./Spectators.svelte";
+    import RoomInfo from "./RoomInfo.svelte";
     import Toggle from "./Toggle.svelte";
     import { onMount } from "svelte";
-    import Qr from "./Qr.svelte";
-    import { getCode } from "../helpers";
     import Join from "./Join.svelte";
+    import Create from "./Create.svelte";
+    import { lobbyMode } from "../stores";
 
-    let players: HTMLElement;
+    let modes: HTMLElement;
 
     onMount(() => {
-        const join = getCode() != null;
-
-        players.scrollLeft = ((join ? 2 : 1) * players.scrollWidth) / 3;
+        modes.scrollLeft =
+            (($lobbyMode == "join" ? 2 : 1) * modes.scrollWidth) / 3;
     });
+
+    let create: Create;
 </script>
 
 <main>
     <Name />
     <Toggle />
-    <players bind:this={players}>
-        <Players type="online">No online yet...</Players>
-        <Players type="create"><Qr /></Players>
-        <Players type="join"><Join /></Players>
-    </players>
+    <modes bind:this={modes}>
+        <RoomInfo>No online yet...</RoomInfo>
+        <Create bind:this={create} />
+        <Join on:leave={create.create} />
+    </modes>
     <buttons>
         <Button><h3>Online</h3></Button>
         <Button><h3>Create</h3></Button>
@@ -57,7 +57,7 @@
         gap: var(--gap);
     }
 
-    players {
+    modes {
         width: 100%;
         overflow-x: scroll;
         grid-area: players;
@@ -70,7 +70,7 @@
         scroll-snap-type: x mandatory;
     }
 
-    players::-webkit-scrollbar {
+    modes::-webkit-scrollbar {
         display: none;
     }
 </style>
