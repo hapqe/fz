@@ -2,7 +2,6 @@ import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import { Game } from '../game/game';
 import Joi, { func } from 'joi';
 
 const app = express();
@@ -79,6 +78,8 @@ class Room {
         if (deleteIfEmpty && this.players.every(p => p == null) && this.spectators.size == 0)
             rooms.delete(this.code);
 
+        player.room = null;
+
         this.inform();
     }
 
@@ -89,6 +90,7 @@ class Room {
     inform() {
         [...this.players, ...this.spectators].forEach((p) => {
             p?.socket.emit('roomInfo', {
+                you: this.players.indexOf(p),
                 players: this.players.map(p => p != null),
                 spectators: this.spectators.size,
             });
