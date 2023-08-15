@@ -1,12 +1,12 @@
 <script lang="ts">
     import { writable } from "svelte/store";
-    import { joined, playing } from "../stores";
+    import { code, playing } from "../stores";
     import socket from "../socket";
 
     playing.subscribe((value) => {
         localStorage.setItem("playing", String(value));
 
-        if ($joined) {
+        if ($code) {
             socket.emit("role", { playing: $playing });
         }
     });

@@ -1,13 +1,16 @@
 <script lang="ts">
+    import socket from "../socket";
     import Player from "./Player.svelte";
     import Spectators from "./Spectators.svelte";
 
     let players = [false, false, false, false];
+    let you = -1;
 
-    export function update(data) {
-        players = data.players;
-        spectators.update(data);
-    }
+    socket.on("roomInfo", (info) => {
+        players = info.players;
+        you = info.you;
+        spectators.update(info);
+    });
 
     function reset() {
         players = [false, false, false, false];
@@ -15,15 +18,11 @@
     }
 
     let spectators: Spectators;
-
-    window.addEventListener("leave", reset);
 </script>
 
 <main>
     {#each [...Array(4).keys()] as index}
-        {#if players[index]}
-            <Player {index} />
-        {/if}
+        <Player active={players[index]} {index} you={index == you} />
     {/each}
 
     <div class="center">

@@ -1,37 +1,34 @@
 <script lang="ts">
     import { bounceOut } from "svelte/easing";
     import { scale } from "svelte/transition";
-    import socket from "../socket";
-    import Leave from "./Leave.svelte";
+    import { code } from "../stores";
 
-    /* 
-    const url =
-                            new URL(window.location.href) + "?j=" + code;
-
-                        const link = await fetch(
-                            `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${url}`
-                        );
-                        const qr = await link.blob();
-                        resolve({ qr: URL.createObjectURL(qr), url });
-    */
+    async function create() {
+        const url = new URL(window.location.origin) + "?j=" + $code;
+        const link = await fetch(
+            `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${url}`
+        );
+        const blob = await link.blob();
+        const qr = URL.createObjectURL(blob);
+        return { qr, url };
+    }
 </script>
 
-<!-- 
 <main>
-    {#if false}
+    {#if $code}
         {#await create() then { qr, url }}
             <a href={url} target="_blank">
-                <img
-                    transition:scale={{ easing: bounceOut }}
-                    src={qr}
-                    alt="QR Code"
-                />
+                <div transition:scale={{ easing: bounceOut }} class="center">
+                    <h1>#{$code}</h1>
+                    <img src={qr} alt="QR Code" />
+                </div>
             </a>
         {/await}
-
-        <button on:click={() => {}}>Start Game!</button>
-    {:else}
-        You need to leave your current room to create a new one.
-        <Leave />
     {/if}
-</main> -->
+</main>
+
+<style>
+    * {
+        text-decoration: none;
+    }
+</style>

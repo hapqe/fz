@@ -1,10 +1,16 @@
 <script lang="ts">
+    import { createEventDispatcher } from "svelte";
+
     export let area: string = "",
         center: boolean = true;
+
+    const dispatch = createEventDispatcher();
 </script>
 
-<button class={center ? "center" : ""} style="grid-area: {area};"
-    ><slot /></button
+<button
+    on:click={() => dispatch("click")}
+    class={center ? "center" : ""}
+    style="grid-area: {area};"><slot /></button
 >
 
 <style>

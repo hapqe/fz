@@ -1,35 +1,59 @@
 <script lang="ts">
-    import { createEventDispatcher } from "svelte";
+    import { bounceIn, bounceOut } from "svelte/easing";
+    import { scale } from "svelte/transition";
     import socket from "../socket";
-    import { code, joined, lobbyMode, playing } from "../stores";
-    import RoomInfo from "./RoomInfo.svelte";
-    import Leave from "./Leave.svelte";
+    import { playing, code } from "../stores";
+    import { createEventDispatcher } from "svelte";
+
+    let dialog: HTMLDialogElement;
+    let open = false;
+    let c = "";
+
+    export function show() {
+        dialog.showModal();
+        open = true;
+    }
 
     function join() {
-        socket.on("roomInfo", update);
+        $code = null;
+        socket.emit("leave");
 
-        socket.emit("join", { code: $code, playing: $playing }, (joined) => {
-            $joined = joined;
+        socket.emit("join", { code: c, playing: $playing }, (joined) => {
+            if (joined) {
+                $code = c;
+            } else {
+                dispatch("failed");
+            }
         });
+        dialog.close();
     }
 
-    function update(i: any) {
-        info.update(i);
-    }
-
-    if ($lobbyMode == "join") join();
-
-    let info: RoomInfo;
-
-    window.addEventListener("leave", () => socket.off("roomInfo", update));
+    const dispatch = createEventDispatcher();
 </script>
 
-<RoomInfo bind:this={info}>
-    {#if $lobbyMode == "join"}
-        <h1>#{$code}</h1>
-        <Leave />
-    {:else}
-        <input bind:value={$code} maxlength="4" type="text" name="" id="" />
-        <!-- <button>{$playing ? "Fight!" : "Spectate"}</button> -->
-    {/if}
-</RoomInfo>
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+<dialog
+    on:click={() => dialog.close()}
+    bind:this={dialog}
+    on:close={() => (open = false)}
+>
+    {#key open}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+            on:click|stopPropagation
+            in:scale={{ easing: bounceOut }}
+            class="fill"
+        >
+            <input bind:value={c} maxlength="4" type="text" name="" id="" />
+            <button disabled={c.length != 4} on:click={join}>Join!</button>
+        </div>
+    {/key}
+</dialog>
+
+<style>
+    dialog {
+        background: none;
+        border: none;
+    }
+</style>

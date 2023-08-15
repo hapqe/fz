@@ -1,35 +1,71 @@
 <script lang="ts">
+    import { fly, scale } from "svelte/transition";
+    import { getCode } from "../helpers";
+    import socket from "../socket";
+    import { code, playing } from "../stores";
     import Button from "./Button.svelte";
     import Name from "./Name.svelte";
+    import Qr from "./Qr.svelte";
     import RoomInfo from "./RoomInfo.svelte";
     import Toggle from "./Toggle.svelte";
-    import { onMount } from "svelte";
     import Join from "./Join.svelte";
-    import Create from "./Create.svelte";
-    import { lobbyMode } from "../stores";
 
-    let modes: HTMLElement;
+    let joinDialog: Join;
 
-    onMount(() => {
-        modes.scrollLeft =
-            (($lobbyMode == "join" ? 2 : 1) * modes.scrollWidth) / 3;
-    });
+    function generateCode() {
+        let code = "";
+
+        let q = Math.random() < 0.5;
+        const letters = ["aeiou", "bcdfghjklmnpqrstvwxyz"];
+        for (let i = 0; i < 4; i++) {
+            q = !q;
+            code +=
+                letters[q ? 0 : 1][
+                    Math.floor(Math.random() * letters[q ? 0 : 1].length)
+                ];
+        }
+        return code;
+    }
+
+    function create() {
+        let c = generateCode();
+        socket.emit("create", { code: c, playing: $playing }, (created) => {
+            if (!created) create();
+            else {
+                $code = c;
+            }
+        });
+    }
+
+    function join() {
+        let c = getCode();
+        socket.emit("join", { code: c, playing: $playing }, (joined) => {
+            if (joined) $code = c;
+        });
+    }
+
+    function leave() {
+        $code = null;
+        socket.emit("leave");
+
+        create();
+    }
+
+    if (!getCode()) create();
+    else join();
 </script>
 
 <main>
     <Name />
     <Toggle />
-    <modes bind:this={modes}>
-        <RoomInfo>No online yet...</RoomInfo>
-        <Create />
-        <Join />
-    </modes>
+    <RoomInfo><Qr /></RoomInfo>
     <buttons>
-        <Button><h3>Online</h3></Button>
-        <Button><h3>Create</h3></Button>
-        <Button><h3>Join</h3></Button>
+        <Button on:click={leave}><h3>New Room</h3></Button>
+        <Button on:click={joinDialog.show}><h3>Join</h3></Button>
     </buttons>
 </main>
+
+<Join bind:this={joinDialog} on:failed={create} />
 
 <style>
     main {
@@ -53,22 +89,5 @@
         display: flex;
         justify-content: space-evenly;
         gap: var(--gap);
-    }
-
-    modes {
-        width: 100%;
-        overflow-x: scroll;
-        grid-area: players;
-
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-
-        display: flex;
-
-        scroll-snap-type: x mandatory;
-    }
-
-    modes::-webkit-scrollbar {
-        display: none;
     }
 </style>
