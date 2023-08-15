@@ -19,8 +19,10 @@
         socket.emit("leave");
 
         socket.emit("join", { code: c, playing: $playing }, (joined) => {
-            if (joined) {
-                $code = c;
+            if (joined.success) $code = c;
+            else if (joined.full) {
+                $playing = false;
+                join();
             } else {
                 dispatch("failed");
             }

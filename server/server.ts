@@ -45,9 +45,12 @@ function requireCallback(callback: any) {
 class Room {
     players: (Player | null)[] = [null, null, null, null];
     spectators = new Set<Player>();
+    started = false;
     constructor(public code: string) { }
 
-    play(player: Player, info: any) {
+    play(player: Player) {
+        if (this.started) throw new ClientError("Game already started");
+
         const index = this.players.indexOf(null);
         if (index == -1)
             throw new ClientError("Room is full");
@@ -55,6 +58,10 @@ class Room {
         this.players[index] = player;
         player.room = this;
 
+        if (this.full()) {
+            this.started = true;
+        }
+ 
         this.inform();
     }
 

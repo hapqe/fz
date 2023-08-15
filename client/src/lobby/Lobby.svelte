@@ -40,7 +40,13 @@
     function join() {
         let c = getCode();
         socket.emit("join", { code: c, playing: $playing }, (joined) => {
-            if (joined) $code = c;
+            if (joined.success) $code = c;
+            else if (joined.full) {
+                $playing = false;
+                join();
+            } else {
+                create();
+            }
         });
     }
 
@@ -58,7 +64,9 @@
 <main>
     <Name />
     <Toggle />
-    <RoomInfo><Qr /></RoomInfo>
+    <RoomInfo>
+        <Qr />
+    </RoomInfo>
     <buttons>
         <Button on:click={leave}><h3>New Room</h3></Button>
         <Button on:click={joinDialog.show}><h3>Join</h3></Button>

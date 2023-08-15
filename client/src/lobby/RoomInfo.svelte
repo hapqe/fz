@@ -10,12 +10,18 @@
         players = info.players;
         you = info.you;
         spectators.update(info);
+
+        if (players.every((p) => p)) {
+            let interval = setInterval(() => {
+                seconds--;
+                if (seconds == 0) {
+                    clearInterval(interval);
+                }
+            }, 1000);
+        }
     });
 
-    function reset() {
-        players = [false, false, false, false];
-        spectators.update({ spectators: 0 });
-    }
+    let seconds = 5;
 
     let spectators: Spectators;
 </script>
@@ -27,6 +33,11 @@
 
     <div class="center">
         <slot />
+        <span>
+            {#if players.every((p) => p)}
+                Game starts in {seconds} seconds
+            {/if}
+        </span>
     </div>
 
     <Spectators bind:this={spectators} />
