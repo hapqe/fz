@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
 import { createProxyMiddleware } from 'http-proxy-middleware';
-import Joi, { func } from 'joi';
+import Joi from 'joi';
 
 const app = express();
 const server = http.createServer(app);
@@ -135,7 +135,7 @@ io.on('connection', (socket) => {
             rooms.set(info.code, room);
 
             if (info.playing)
-                room.play(player, info);
+                room.play(player);
             else
                 room.spectate(player);
 
@@ -171,7 +171,7 @@ io.on('connection', (socket) => {
                 if (room.full()) {
                     callback({ full: true });
                 }
-                room.play(player, info);
+                room.play(player);
             }
             else room.spectate(player);
 
@@ -197,7 +197,7 @@ io.on('connection', (socket) => {
             room.leave(player, false);
 
             if (info.playing)
-                room.play(player, info);
+                room.play(player);
             else
                 room.spectate(player);
         }
