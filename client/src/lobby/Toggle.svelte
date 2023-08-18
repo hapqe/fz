@@ -3,17 +3,20 @@
   import { code, playing } from "../stores";
   import socket from "../socket";
 
+  let full = false;
+  socket.on("roomInfo", (info) => {
+    full = info.players.every((p) => p);
+  });
+
   playing.subscribe((value) => {
     localStorage.setItem("playing", String(value));
 
     if ($code) {
-      socket.emit("role", { playing: $playing }, (i) => {
-        if (i !== true && i.full) {
-          socket.emit("role", { playing: false }, (i) => {
-            playing.set(false);
-          });
-        }
-      });
+      if (full && $playing) {
+        $playing = false;
+        alert("Room is full");
+      }
+      socket.emit("role", { playing: $playing });
     }
   });
 </script>

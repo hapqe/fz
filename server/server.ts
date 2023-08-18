@@ -182,10 +182,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('role', (info, callback) => {
+  socket.on('role', (info) => {
     try {
-      requireCallback(callback);
-
       const schema = Joi.object({
         playing: Joi.boolean().required()
       })
@@ -199,15 +197,10 @@ io.on('connection', (socket) => {
       room.leave(player, false);
 
       if (info.playing) {
-        if (room.full()) {
-          callback({ full: true });
-        }
         room.play(player);
       }
       else
         room.spectate(player);
-
-      callback({ success: true });
     }
     catch (e) {
       handle(e, socket);
