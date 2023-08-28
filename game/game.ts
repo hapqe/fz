@@ -18,13 +18,12 @@ export class Game {
     ];
 
     constructor() {
-        setInterval(() => {
-            this.tick();
-        }, 1000 / this.tickRate);
+        this.tick();
     }
 
     tick() {
         this.onTick();
+        requestAnimationFrame(() => this.tick());
     }
 
 }

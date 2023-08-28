@@ -10,7 +10,7 @@ type State = "lobby" | "ready" | "game";
 
 export const state = writable<State>("lobby");
 
-export const width = writable(window.innerWidth);
-export const height = writable(window.innerHeight);
+export const width = writable(window.innerWidth * window.devicePixelRatio ?? 1);
+export const height = writable(window.innerHeight * window.devicePixelRatio ?? 1);
 
 export const game = writable<Game | null>(null);

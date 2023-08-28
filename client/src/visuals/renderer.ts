@@ -1,3 +1,5 @@
+import { Vec2 } from "../../../game/math";
+import initInput, { getInput } from "../input";
 import { game, width } from "../stores";
 
 class RendererError extends Error {
@@ -42,23 +44,22 @@ async function setup() {
 }
 
 export default async function init() {
-    const [renderer, troopsMap, rectStr] = await Promise.all([
+    const [renderer, trailStr] = await Promise.all([
         setup(),
-        imageBitmap('troops'),
-        shaderStr('rect')
+        shaderStr('trail')
     ])
 
     const pipeline = renderer.device.createRenderPipeline({
         layout: 'auto',
         vertex: {
             module: renderer.device.createShaderModule({
-                code: rectStr
+                code: trailStr
             }),
             entryPoint: 'vs_main',
         },
         fragment: {
             module: renderer.device.createShaderModule({
-                code: rectStr
+                code: trailStr
             }),
             entryPoint: 'fs_main',
             targets: [{
@@ -66,38 +67,94 @@ export default async function init() {
             }]
         },
         primitive: {
-            topology: 'triangle-strip'
+            topology: 'line-strip',
         },
         multisample: {
             count: 4
         }
     });
 
+    function getSize() {
+        return [
+            renderer.canvas.width,
+            renderer.canvas.height
+        ]
+    }
+
     let renderTarget: GPUTexture;
     let renderTargetView: GPUTextureView;
-    let size = [renderer.canvas.width, renderer.canvas.height];
+    let size = getSize();
+
+    const positionBuffer = renderer.device.createBuffer({
+        size: 2000,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+
+    const infoBuffer = renderer.device.createBuffer({
+        size: 4,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+    });
+
+    const bindGroup = renderer.device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: [
+            {
+                binding: 0,
+                resource: {
+                    buffer: positionBuffer
+                }
+            },
+            // {
+            //     binding: 1,
+            //     resource: {
+            //         buffer: infoBuffer,
+            //     }
+            // }
+        ]
+    });
 
     game.subscribe((game) => {
         if (!game) return;
 
-        game.onTick = () => {
-            const array = game.beers.map((beer) => {
-                return [
-                    beer.x,
-                    beer.y,
-                    .03,
-                    .03,
-                    0,
-                    0,
-                    0,
-                    0,
-                ];
-            }).flat();
+        initInput();
 
+        let positions: Vec2[] = [];
+        function render() {
+            const input = getInput();
+            console.log(input);
+
+            if (input.magnitude > 0.001)
+                positions.push(input);
+
+
+
+            // only 10 newest positions
+            positions = positions.slice(-20);
+
+            const top: Vec2[] = [];
+            for (let i = 0; i < positions.length; i++) {
+                // const current = positions[i];
+                // const next = positions[i + 1];
+
+                // if (!next) break;
+
+                // const x = Vec2.sub(next, current);
+                // console.log(x.magnitude);
+
+
+                // console.log(Vec2.sub(next, current).normalized.magnitude);
+
+
+                // const normal = Vec2.mul(, 0.1);
+
+                // top.push(Vec2.add(current, normal));
+            }
+
+            // get normalized mouse pos
             renderer.device.queue.writeBuffer(
                 positionBuffer,
                 0,
-                new Float32Array(array)
+                new Float32Array(top.flatMap(p => [p.x, p.y, 0, 0]))
             );
 
             const aspect = renderer.canvas.width / renderer.canvas.height;
@@ -110,11 +167,11 @@ export default async function init() {
 
             const encoder = renderer.device.createCommandEncoder();
 
-            // resize?
-            if (size[0] != renderer.canvas.width || size[1] != renderer.canvas.height || !renderTarget) {
+            const newSize = getSize();
+            if (size[0] !== newSize[0] || size[1] !== newSize[1] || !renderTarget) {
                 renderTarget?.destroy();
 
-                size = [renderer.canvas.width, renderer.canvas.height];
+                size = newSize;
 
                 renderTarget = renderer.device.createTexture({
                     size,
@@ -128,7 +185,7 @@ export default async function init() {
 
             const pass = encoder.beginRenderPass({
                 colorAttachments: [{
-                    view: renderTarget.createView(),
+                    view: renderTargetView,
                     resolveTarget: renderer.ctx.getCurrentTexture().createView(),
                     loadOp: 'clear',
                     storeOp: 'store',
@@ -137,63 +194,13 @@ export default async function init() {
 
             pass.setBindGroup(0, bindGroup);
             pass.setPipeline(pipeline);
-            pass.draw(4, 5, 0, 0);
+            pass.draw(positions.length, 1, 0, 0);
             pass.end();
 
             renderer.device.queue.submit([encoder.finish()]);
+
+            requestAnimationFrame(render);
         }
-    });
-
-
-    const positionBuffer = renderer.device.createBuffer({
-        size: 320,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-
-    const infoBuffer = renderer.device.createBuffer({
-        size: 4,
-        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-    });
-
-    const texture = renderer.device.createTexture({
-        size: [troopsMap.width, troopsMap.height, 1],
-        format: 'rgba8unorm',
-        usage: GPUTextureUsage.COPY_DST | GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT
-    });
-
-    renderer.device.queue.copyExternalImageToTexture(
-        { source: troopsMap },
-        { texture },
-        [troopsMap.width, troopsMap.height]
-    );
-
-    const sampler = renderer.device.createSampler({
-        magFilter: 'linear',
-        minFilter: 'linear',
-    });
-
-    const bindGroup = renderer.device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(0),
-        entries: [{
-            binding: 0,
-            resource: {
-                buffer: positionBuffer
-            }
-        },
-        {
-            binding: 1,
-            resource: {
-                buffer: infoBuffer,
-            }
-        },
-        {
-            binding: 2,
-            resource: sampler
-        },
-        {
-            binding: 3,
-            resource: texture.createView()
-        },
-        ]
+        render();
     });
 }
