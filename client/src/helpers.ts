@@ -1,7 +1,7 @@
 import socket from "./socket";
 
 export function getCode() {
-    return new URLSearchParams(window.location.search).get("j");
+    return new URLSearchParams(window.location.search).get("r");
 }
 
 export class Action {

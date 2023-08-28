@@ -3,6 +3,7 @@ import http from 'http';
 import { Server, Socket } from 'socket.io';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import Joi from 'joi';
+import { Game } from '../game/game';
 
 const app = express();
 const server = http.createServer(app);
@@ -45,11 +46,15 @@ function requireCallback(callback: any) {
 class Room {
   players: (Player | null)[] = [null, null, null, null];
   spectators = new Set<Player>();
-  started = false;
+  start?: Date;
+  game?: Game;
+
+  readonly startDelay = 0;
+
   constructor(public code: string) { }
 
   play(player: Player) {
-    if (this.started) throw new ClientError("Game already started");
+    if (this.start) throw new ClientError("Game already started");
 
     const index = this.players.indexOf(null);
     if (index == -1)
@@ -58,8 +63,12 @@ class Room {
     this.players[index] = player;
     player.room = this;
 
-    if (this.full()) {
-      this.started = true;
+    if (this.full() && !this.start) {
+      // in 5 seconds
+      this.start = new Date(Date.now() + this.startDelay);
+      setTimeout(() => {
+        this.game = new Game();
+      }, this.startDelay);
     }
 
     this.inform();
@@ -91,6 +100,7 @@ class Room {
   }
 
   full() {
+    return true;
     return this.players.every(p => p != null);
   }
 
@@ -100,6 +110,7 @@ class Room {
         you: this.players.indexOf(p),
         players: this.players.map(p => p != null),
         spectators: this.spectators.size,
+        start: this.start?.getTime()
       });
     });
   }

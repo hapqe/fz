@@ -4,12 +4,14 @@
     import { code } from "../stores";
 
     async function create() {
-        const url = new URL(window.location.origin) + "?j=" + $code;
+        const url = new URL(window.location.origin) + "?r=" + $code;
         const link = await fetch(
             `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${url}`
         );
         const blob = await link.blob();
         const qr = URL.createObjectURL(blob);
+        window.history.replaceState(null, "", url.toString());
+
         return { qr, url };
     }
 </script>

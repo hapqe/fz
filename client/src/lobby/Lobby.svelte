@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { fly, scale } from "svelte/transition";
+    import { slide } from "svelte/transition";
     import { getCode } from "../helpers";
     import socket from "../socket";
-    import { code, playing } from "../stores";
+    import { code, game, playing } from "../stores";
     import Button from "./Button.svelte";
     import Name from "./Name.svelte";
     import Qr from "./Qr.svelte";
@@ -61,18 +61,22 @@
     else join();
 </script>
 
-<main>
-    <Name />
-    <Toggle />
-    <RoomInfo>
-        <Qr />
-    </RoomInfo>
-    <buttons>
-        <Button on:click={leave}><h3>New Room</h3></Button>
-        <Button on:click={joinDialog.show}><h3>Join</h3></Button>
-    </buttons>
-</main>
-
+{#if !$game}
+    <!-- out:slide -->
+    <div>
+        <main>
+            <Name />
+            <Toggle />
+            <RoomInfo>
+                <Qr />
+            </RoomInfo>
+            <buttons>
+                <Button on:click={leave}><h3>New Room</h3></Button>
+                <Button on:click={joinDialog.show}><h3>Join</h3></Button>
+            </buttons>
+        </main>
+    </div>
+{/if}
 <Join bind:this={joinDialog} on:failed={create} />
 
 <style>
